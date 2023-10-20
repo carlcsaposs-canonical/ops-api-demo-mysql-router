@@ -12,7 +12,6 @@ import ops
 import tenacity
 
 import container
-import lifecycle
 import relations.database_provides
 import relations.database_requires
 import workload
@@ -25,11 +24,6 @@ class MySQLRouterCharm(ops.CharmBase, abc.ABC):
 
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        # Instantiate before registering other event observers
-        self._unit_lifecycle = lifecycle.Unit(
-            self, subordinated_relation_endpoint_names=self._subordinate_relation_endpoint_names
-        )
-
         self._workload_type = workload.Workload
         self._authenticated_workload_type = workload.AuthenticatedWorkload
         self._database_requires = relations.database_requires.RelationEndpoint(self)
@@ -47,12 +41,6 @@ class MySQLRouterCharm(ops.CharmBase, abc.ABC):
 
         Does NOT include relations where charm is principal
         """
-
-    @property
-    def _tls_certificate_saved(self) -> bool:
-        """Whether a TLS certificate is available to use"""
-        # TODO VM TLS: Remove property after implementing TLS on machine charm
-        return False
 
     @property
     @abc.abstractmethod
@@ -116,7 +104,7 @@ class MySQLRouterCharm(ops.CharmBase, abc.ABC):
 
     def set_status(self, *, event) -> None:
         """Set charm status."""
-        if self._unit_lifecycle.authorized_leader:
+        if self.unit.is_leader():
             self.app.status = self._determine_app_status(event=event)
             logger.debug(f"Set app status to {self.app.status}")
         self.unit.status = self._determine_unit_status(event=event)
@@ -154,12 +142,12 @@ class MySQLRouterCharm(ops.CharmBase, abc.ABC):
         workload_ = self.get_workload(event=event)
         logger.debug(
             "State of reconcile "
-            f"{self._unit_lifecycle.authorized_leader=}, "
+            f"{self.unit.is_leader()=}, "
             f"{isinstance(workload_, workload.AuthenticatedWorkload)=}, "
             f"{workload_.container_ready=}, "
             f"{self._database_requires.is_relation_breaking(event)=}"
         )
-        if self._unit_lifecycle.authorized_leader:
+        if self.unit.is_leader():
             if self._database_requires.is_relation_breaking(event):
                 self._database_provides.delete_all_databags()
             elif (
@@ -172,7 +160,7 @@ class MySQLRouterCharm(ops.CharmBase, abc.ABC):
                     shell=workload_.shell,
                 )
         if isinstance(workload_, workload.AuthenticatedWorkload) and workload_.container_ready:
-            workload_.enable(tls=self._tls_certificate_saved, unit_name=self.unit.name)
+            workload_.enable(unit_name=self.unit.name)
         elif workload_.container_ready:
             workload_.disable()
         self.set_status(event=event)

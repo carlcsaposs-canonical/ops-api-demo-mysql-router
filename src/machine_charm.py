@@ -12,12 +12,10 @@ import typing
 import ops
 
 import abstract_charm
-import relations.database_providers_wrapper
 import snap
 import socket_workload
 
 logger = logging.getLogger(__name__)
-# TODO VM TLS: open ports for `juju expose`
 
 
 class MachineSubordinateRouterCharm(abstract_charm.MySQLRouterCharm):
@@ -25,10 +23,6 @@ class MachineSubordinateRouterCharm(abstract_charm.MySQLRouterCharm):
 
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        # DEPRECATED shared-db: Enable legacy "mysql-shared" interface
-        del self._database_provides
-        self._database_provides = relations.database_providers_wrapper.RelationEndpoint(self)
-
         self._authenticated_workload_type = socket_workload.AuthenticatedSocketWorkload
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)

@@ -126,10 +126,8 @@ class Snap(container.Container):
     def mysql_router_service_enabled(self) -> bool:
         return _snap.services[self._SERVICE_NAME]["active"]
 
-    def update_mysql_router_service(self, *, enabled: bool, tls: bool = None) -> None:
-        super().update_mysql_router_service(enabled=enabled, tls=tls)
-        if tls:
-            raise NotImplementedError  # TODO VM TLS
+    def update_mysql_router_service(self, *, enabled: bool) -> None:
+        super().update_mysql_router_service(enabled=enabled)
         if enabled:
             _snap.start([self._SERVICE_NAME], enable=True)
         else:

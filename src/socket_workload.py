@@ -58,6 +58,6 @@ class AuthenticatedSocketWorkload(workload.AuthenticatedWorkload):
             self._container.router_config_file.write_text(output.getvalue())
         logger.debug("Updated configured socket file locations")
 
-    def _bootstrap_router(self, *, tls: bool) -> None:
-        super()._bootstrap_router(tls=tls)
+    def _bootstrap_router(self) -> None:
+        super()._bootstrap_router()
         self._update_configured_socket_file_locations()

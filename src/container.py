@@ -67,11 +67,6 @@ class Container(abc.ABC):
         """
         return self.router_config_directory / "mysqlrouter.conf"
 
-    @property
-    def tls_config_file(self) -> Path:
-        """Extra MySQL Router configuration file to enable TLS"""
-        return self.router_config_directory / "tls.conf"
-
     def __init__(self, *, mysql_router_command: str, mysql_shell_command: str) -> None:
         self._mysql_router_command = mysql_router_command
         self._mysql_shell_command = mysql_shell_command
@@ -90,15 +85,12 @@ class Container(abc.ABC):
         """MySQL Router service status"""
 
     @abc.abstractmethod
-    def update_mysql_router_service(self, *, enabled: bool, tls: bool = None) -> None:
+    def update_mysql_router_service(self, *, enabled: bool) -> None:
         """Update and restart MySQL Router service.
 
         Args:
             enabled: Whether MySQL Router service is enabled
-            tls: Whether TLS is enabled. Required if enabled=True
         """
-        if enabled:
-            assert tls is not None, "`tls` argument required when enabled=True"
 
     @abc.abstractmethod
     # TODO python3.10 min version: Use `list` instead of `typing.List`
