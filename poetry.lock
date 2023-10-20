@@ -218,6 +218,21 @@ files = [
 pycparser = "*"
 
 [[package]]
+name = "charm"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.8"
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "git@github.com:carlcsaposs-canonical/charm.git"
+reference = "HEAD"
+resolved_reference = "6b9b2808985f2b4af94742d86908934aead6ae90"
+
+[[package]]
 name = "charset-normalizer"
 version = "3.2.0"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
@@ -1967,4 +1982,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.1"
-content-hash = "e137fab686e69cfc4b4ea271eed16e44cf959108b785159dae9cdcac40070ecd"
+content-hash = "8c8c088ff5d6f683a11306869eb85bdf14a606fa463c7f006f439de1ca29e035"

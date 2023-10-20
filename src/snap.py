@@ -9,8 +9,8 @@ import shutil
 import subprocess
 import typing
 
+import charm
 import charms.operator_libs_linux.v2.snap as snap_lib
-import ops
 import tenacity
 
 import container
@@ -22,17 +22,17 @@ _REVISION = "69"  # v8.0.34
 _snap = snap_lib.SnapCache()[_SNAP_NAME]
 
 
-def install(*, unit: ops.Unit):
+def install():
     """Install snap."""
     if _snap.present:
         logger.error(f"{_SNAP_NAME} snap already installed on machine. Installation aborted")
         raise Exception(f"Multiple {_SNAP_NAME} snap installs not supported on one machine")
     logger.debug(f"Installing {_SNAP_NAME=}, {_REVISION=}")
-    unit.status = ops.MaintenanceStatus("Installing snap")
+    charm.unit_status = charm.MaintenanceStatus("Installing snap")
 
     def _set_retry_status(_) -> None:
         message = "Snap install failed. Retrying..."
-        unit.status = ops.MaintenanceStatus(message)
+        charm.unit_status = charm.MaintenanceStatus(message)
         logger.debug(message)
 
     for attempt in tenacity.Retrying(
@@ -137,11 +137,7 @@ class Snap(container.Container):
     def _run_command(self, command: typing.List[str], *, timeout: typing.Optional[int]) -> str:
         try:
             output = subprocess.run(
-                command,
-                capture_output=True,
-                timeout=timeout,
-                check=True,
-                encoding="utf-8",
+                command, capture_output=True, timeout=timeout, check=True, encoding="utf-8"
             ).stdout
         except subprocess.CalledProcessError as e:
             raise container.CalledProcessError(

@@ -6,26 +6,23 @@
 import logging
 import typing
 
-import charms.data_platform_libs.v0.data_interfaces as data_interfaces
-import ops
-
-import relations.remote_databag as remote_databag
-import status_exception
-
-if typing.TYPE_CHECKING:
-    import abstract_charm
+import charm
 
 logger = logging.getLogger(__name__)
 
 
-class _MissingRelation(status_exception.StatusException):
+class _IncompleteDatabag(KeyError):
+    """Databag is missing required key"""
+
+
+class _MissingRelation(Exception):
     """Relation to MySQL charm does (or will) not exist for this unit
 
     If this unit is tearing down, the relation could still exist for other units.
     """
 
-    def __init__(self, *, endpoint_name: str) -> None:
-        super().__init__(ops.BlockedStatus(f"Missing relation: {endpoint_name}"))
+    def __init__(self) -> None:
+        super().__init__(charm.BlockedStatus(f"Missing relation: {_ENDPOINT_NAME}"))
 
 
 class _RelationBreaking(_MissingRelation):
@@ -46,77 +43,50 @@ class ConnectionInformation:
     (Different from user that MySQL Router runs with after bootstrap.)
     """
 
-    def __init__(self, *, interface: data_interfaces.DatabaseRequires, event) -> None:
-        relations = interface.relations
-        endpoint_name = interface.relation_name
+    def __init__(self) -> None:
+        relations = charm.endpoints[_ENDPOINT_NAME]
         if not relations:
-            raise _MissingRelation(endpoint_name=endpoint_name)
+            raise _MissingRelation()
         assert len(relations) == 1
         relation = relations[0]
-        if isinstance(event, ops.RelationBrokenEvent) and event.relation.id == relation.id:
-            # Relation will be broken after the current event is handled
-            raise _RelationBreaking(endpoint_name=endpoint_name)
-        # MySQL charm databag
-        databag = remote_databag.RemoteDatabag(interface=interface, relation=relation)
-        endpoints = databag["endpoints"].split(",")
-        assert len(endpoints) == 1
-        endpoint = endpoints[0]
-        self.host: str = endpoint.split(":")[0]
-        self.port: str = endpoint.split(":")[1]
-        self.username: str = databag["username"]
-        self.password: str = databag["password"]
-
-
-class RelationEndpoint:
-    """Relation endpoint for MySQL charm"""
-
-    _NAME = "backend-database"
-
-    def __init__(self, charm_: "abstract_charm.MySQLRouterCharm") -> None:
-        self._interface = data_interfaces.DatabaseRequires(
-            charm_,
-            relation_name=self._NAME,
+        assert isinstance(relation, charm.RemoteRelation)
+        if charm.is_leader:
             # Database name disregarded by MySQL charm if "mysqlrouter" extra user role requested
-            database_name="mysql_innodb_cluster_metadata",
-            extra_user_roles="mysqlrouter",
-        )
-        charm_.framework.observe(
-            charm_.on[self._NAME].relation_created,
-            charm_.reconcile_database_relations,
-        )
-        charm_.framework.observe(
-            self._interface.on.database_created,
-            charm_.reconcile_database_relations,
-        )
-        charm_.framework.observe(
-            self._interface.on.endpoints_changed,
-            charm_.reconcile_database_relations,
-        )
-        charm_.framework.observe(
-            charm_.on[self._NAME].relation_broken,
-            charm_.reconcile_database_relations,
-        )
-
-    def get_connection_info(self, *, event) -> typing.Optional[ConnectionInformation]:
-        """Information for connection to MySQL cluster"""
+            relation.my_app["database"] = "mysql_innodb_cluster_metadata"
+            relation.my_app["extra-user-roles"] = "mysqlrouter"
+        if relation.breaking:
+            # Relation will be broken after the current event is handledop
+            raise _RelationBreaking()
         try:
-            return ConnectionInformation(interface=self._interface, event=event)
-        except (_MissingRelation, remote_databag.IncompleteDatabag):
-            return
+            endpoints = relation.remote_app["endpoints"].split(",")
+            assert len(endpoints) == 1
+            endpoint = endpoints[0]
+            self.host: str = endpoint.split(":")[0]
+            self.port: str = endpoint.split(":")[1]
+            self.username: str = relation.remote_app["username"]
+            self.password: str = relation.remote_app["password"]
+        except KeyError:
+            raise _IncompleteDatabag(
+                charm.WaitingStatus(
+                    f"Waiting for {relation._remote_app_name} app on {_ENDPOINT_NAME} endpoint"
+                )
+            )
 
-    def is_relation_breaking(self, event) -> bool:
-        """Whether relation will be broken after the current event is handled"""
-        try:
-            ConnectionInformation(interface=self._interface, event=event)
-        except _RelationBreaking:
-            return True
-        except (_MissingRelation, remote_databag.IncompleteDatabag):
-            pass
-        return False
 
-    def get_status(self, event) -> typing.Optional[ops.StatusBase]:
-        """Report non-active status."""
-        try:
-            ConnectionInformation(interface=self._interface, event=event)
-        except (_MissingRelation, remote_databag.IncompleteDatabag) as exception:
-            return exception.status
+_ENDPOINT_NAME = "backend-database"
+
+connection_info: typing.Optional[ConnectionInformation] = None
+"""Information for connection to MySQL cluster"""
+
+relation_breaking = False
+"""Whether relation will be broken after the current event is handled"""
+
+status: typing.Optional[charm.Status] = None
+"""Non-active status"""
+
+try:
+    connection_info = ConnectionInformation()
+except (_MissingRelation, _IncompleteDatabag) as e:
+    if isinstance(e, _RelationBreaking):
+        relation_breaking = True
+    status = e.args[0]

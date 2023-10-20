@@ -13,6 +13,8 @@ import secrets
 import string
 import typing
 
+import charm
+
 import container
 
 logger = logging.getLogger(__name__)
@@ -111,20 +113,16 @@ class Shell:
         logger.debug(f"Created {database=} and {username=} with {attributes=}")
         return password
 
-    def add_attributes_to_mysql_router_user(
-        self, *, username: str, router_id: str, unit_name: str
-    ) -> None:
+    def add_attributes_to_mysql_router_user(self, *, username: str, router_id: str) -> None:
         """Add attributes to user created during MySQL Router bootstrap."""
         attributes = self._get_attributes(
-            {"router_id": router_id, "created_by_juju_unit": unit_name}
+            {"router_id": router_id, "created_by_juju_unit": charm._unit}
         )
         logger.debug(f"Adding {attributes=} to {username=}")
         self._run_sql([f"ALTER USER `{username}` ATTRIBUTE '{attributes}'"])
         logger.debug(f"Added {attributes=} to {username=}")
 
-    def get_mysql_router_user_for_unit(
-        self, unit_name: str
-    ) -> typing.Optional[RouterUserInformation]:
+    def get_mysql_router_user_for_unit(self) -> typing.Optional[RouterUserInformation]:
         """Get MySQL Router user created by a previous instance of the unit.
 
         Get username & router ID attribute.
@@ -134,22 +132,22 @@ class Shell:
         restart, the user and cluster metadata should be deleted before bootstrapping MySQL Router
         again.
         """
-        logger.debug(f"Getting MySQL Router user for {unit_name=}")
+        logger.debug(f"Getting MySQL Router user for {charm._unit=}")
         rows = json.loads(
             self._run_commands(
                 [
-                    f"result = session.run_sql(\"SELECT USER, ATTRIBUTE->>'$.router_id' FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE ATTRIBUTE->'$.created_by_user'='{self.username}' AND ATTRIBUTE->'$.created_by_juju_unit'='{unit_name}'\")",
+                    f"result = session.run_sql(\"SELECT USER, ATTRIBUTE->>'$.router_id' FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE ATTRIBUTE->'$.created_by_user'='{self.username}' AND ATTRIBUTE->'$.created_by_juju_unit'='{charm._unit}'\")",
                     "print(result.fetch_all())",
                 ]
             )
         )
         if not rows:
-            logger.debug(f"No MySQL Router user found for {unit_name=}")
+            logger.debug(f"No MySQL Router user found for {charm._unit=}")
             return
         assert len(rows) == 1
         username, router_id = rows[0]
         user_info = RouterUserInformation(username=username, router_id=router_id)
-        logger.debug(f"MySQL Router user found for {unit_name=}: {user_info}")
+        logger.debug(f"MySQL Router user found for {charm._unit=}: {user_info}")
         return user_info
 
     def remove_router_from_cluster_metadata(self, router_id: str) -> None:
