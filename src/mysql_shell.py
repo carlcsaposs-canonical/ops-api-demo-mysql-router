@@ -116,7 +116,7 @@ class Shell:
     def add_attributes_to_mysql_router_user(self, *, username: str, router_id: str) -> None:
         """Add attributes to user created during MySQL Router bootstrap."""
         attributes = self._get_attributes(
-            {"router_id": router_id, "created_by_juju_unit": charm._unit}
+            {"router_id": router_id, "created_by_juju_unit": charm.state.unit}
         )
         logger.debug(f"Adding {attributes=} to {username=}")
         self._run_sql([f"ALTER USER `{username}` ATTRIBUTE '{attributes}'"])
@@ -132,22 +132,22 @@ class Shell:
         restart, the user and cluster metadata should be deleted before bootstrapping MySQL Router
         again.
         """
-        logger.debug(f"Getting MySQL Router user for {charm._unit=}")
+        logger.debug(f"Getting MySQL Router user for {charm.state.unit=}")
         rows = json.loads(
             self._run_commands(
                 [
-                    f"result = session.run_sql(\"SELECT USER, ATTRIBUTE->>'$.router_id' FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE ATTRIBUTE->'$.created_by_user'='{self.username}' AND ATTRIBUTE->'$.created_by_juju_unit'='{charm._unit}'\")",
+                    f"result = session.run_sql(\"SELECT USER, ATTRIBUTE->>'$.router_id' FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE ATTRIBUTE->'$.created_by_user'='{self.username}' AND ATTRIBUTE->'$.created_by_juju_unit'='{charm.state.unit}'\")",
                     "print(result.fetch_all())",
                 ]
             )
         )
         if not rows:
-            logger.debug(f"No MySQL Router user found for {charm._unit=}")
+            logger.debug(f"No MySQL Router user found for {charm.state.unit=}")
             return
         assert len(rows) == 1
         username, router_id = rows[0]
         user_info = RouterUserInformation(username=username, router_id=router_id)
-        logger.debug(f"MySQL Router user found for {charm._unit=}: {user_info}")
+        logger.debug(f"MySQL Router user found for {charm.state.unit=}: {user_info}")
         return user_info
 
     def remove_router_from_cluster_metadata(self, router_id: str) -> None:
