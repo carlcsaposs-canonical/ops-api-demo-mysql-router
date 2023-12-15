@@ -28,11 +28,11 @@ def install():
         logger.error(f"{_SNAP_NAME} snap already installed on machine. Installation aborted")
         raise Exception(f"Multiple {_SNAP_NAME} snap installs not supported on one machine")
     logger.debug(f"Installing {_SNAP_NAME=}, {_REVISION=}")
-    charm.unit_status = charm.MaintenanceStatus("Installing snap")
+    charm.state.unit_status = charm.MaintenanceStatus("Installing snap")
 
     def _set_retry_status(_) -> None:
         message = "Snap install failed. Retrying..."
-        charm.unit_status = charm.MaintenanceStatus(message)
+        charm.state.unit_status = charm.MaintenanceStatus(message)
         logger.debug(message)
 
     for attempt in tenacity.Retrying(

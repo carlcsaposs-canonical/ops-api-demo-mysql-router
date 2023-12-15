@@ -103,7 +103,7 @@ class AuthenticatedWorkload(Workload):
         (Storage is not persisted on container restart—MySQL Router's config file is deleted.
         Therefore, MySQL Router needs to be bootstrapped again.)
         """
-        if user_info := self.shell.get_mysql_router_user_for_unit(self._charm.unit.name):
+        if user_info := self.shell.get_mysql_router_user_for_unit(self._charm.state.unit.name):
             logger.debug("Cleaning up after container restart")
             self.shell.remove_router_from_cluster_metadata(user_info.router_id)
             self.shell.delete_user(user_info.username)
@@ -156,7 +156,7 @@ class AuthenticatedWorkload(Workload):
         Retry every 5 seconds for up to 30 seconds.
         """
         logger.debug("Waiting until MySQL Router is ready")
-        charm.unit_status = charm.WaitingStatus("MySQL Router starting")
+        charm.state.unit_status = charm.WaitingStatus("MySQL Router starting")
         try:
             for attempt in tenacity.Retrying(
                 reraise=True, stop=tenacity.stop_after_delay(30), wait=tenacity.wait_fixed(5)

@@ -44,13 +44,13 @@ class ConnectionInformation:
     """
 
     def __init__(self) -> None:
-        relations = charm.endpoints[_ENDPOINT_NAME]
+        relations = charm.state.endpoints[_ENDPOINT_NAME]
         if not relations:
             raise _MissingRelation()
         assert len(relations) == 1
         relation = relations[0]
         assert isinstance(relation, charm.RemoteRelation)
-        if charm.is_leader:
+        if charm.state.is_leader:
             # Database name disregarded by MySQL charm if "mysqlrouter" extra user role requested
             relation.my_app["database"] = "mysql_innodb_cluster_metadata"
             relation.my_app["extra-user-roles"] = "mysqlrouter"

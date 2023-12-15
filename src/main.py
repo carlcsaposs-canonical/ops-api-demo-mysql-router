@@ -18,20 +18,20 @@ if connection_info := relations.database_requires.connection_info:
 else:
     workload_ = workload.Workload(container_=container)
 
-if isinstance(charm.event, charm.InstallEvent):
+if isinstance(charm.state.event, charm.InstallEvent):
     snap.install()
-    charm.workload_version = workload_.version
-elif isinstance(charm.event, charm.RemoveEvent):
+    charm.state.workload_version = workload_.version
+elif isinstance(charm.state.event, charm.RemoveEvent):
     snap.uninstall()
 else:
     logger.debug(
         "State of reconcile "
-        f"{charm.is_leader=}, "
+        f"{charm.state.is_leader=}, "
         f"{isinstance(workload_, workload.AuthenticatedWorkload)=}, "
         f"{workload_.container_ready=}, "
         f"{relations.database_requires.relation_breaking=}"
     )
-    if charm.is_leader:
+    if charm.state.is_leader:
         if relations.database_requires.relation_breaking:
             relations.database_provides.delete_all_databags()
         elif isinstance(workload_, workload.AuthenticatedWorkload) and workload_.container_ready:
@@ -45,12 +45,12 @@ else:
     elif workload_.container_ready:
         workload_.disable()
     # Set status
-    if charm.is_leader:
-        charm.app_status = max(
+    if charm.state.is_leader:
+        charm.state.app_status = max(
             (
                 relations.database_requires.status,
                 relations.database_provides.get_status(),
                 charm.ActiveStatus(),
             )
         )
-    charm.unit_status = max((workload_.status, charm.ActiveStatus()))
+    charm.state.unit_status = max((workload_.status, charm.ActiveStatus()))

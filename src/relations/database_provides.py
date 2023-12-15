@@ -112,7 +112,7 @@ class _RelationWithCreatedUser(_Relation):
 
 def _created_users() -> typing.List[_RelationWithCreatedUser]:
     created_users = []
-    for relation in charm.endpoints[_ENDPOINT_NAME]:
+    for relation in charm.state.endpoints[_ENDPOINT_NAME]:
         try:
             created_users.append(_RelationWithCreatedUser(relation))
         except _UserNotCreated:
@@ -131,7 +131,7 @@ def reconcile_users(
     """
     logger.debug(f"Reconciling users {router_read_write_endpoint=}, {router_read_only_endpoint=}")
     requested_users = []
-    for relation in charm.endpoints[_ENDPOINT_NAME]:
+    for relation in charm.state.endpoints[_ENDPOINT_NAME]:
         try:
             requested_users.append(_RelationThatRequestedUser(relation))
         except (_RelationBreaking, _IncompleteDatabag, _UnsupportedExtraUserRole):
@@ -170,7 +170,7 @@ def get_status() -> typing.Optional[charm.Status]:
     requested_users = []
     exception_reporting_priority = (_UnsupportedExtraUserRole, _IncompleteDatabag)
     exceptions: typing.List[Exception] = []
-    for relation in charm.endpoints[_ENDPOINT_NAME]:
+    for relation in charm.state.endpoints[_ENDPOINT_NAME]:
         try:
             requested_users.append(_RelationThatRequestedUser(relation))
         except _RelationBreaking:
